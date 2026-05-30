@@ -83,10 +83,10 @@ async function seedDatabase() {
         hypertension: false,
         heartDisease: false,
         smokingHistory: "never",
-        bmi: "24.5",
-        hba1cLevel: "5.2",
-        bloodGlucoseLevel: "95",
-        riskScore: "12.3",
+        bmi: 24.5,
+        hba1cLevel: 5.2,
+        bloodGlucoseLevel: 95,
+        riskScore: 12.3,
         riskCategory: "LOW",
         factors: [
           {
@@ -113,10 +113,10 @@ async function seedDatabase() {
         hypertension: true,
         heartDisease: false,
         smokingHistory: "former",
-        bmi: "31.2",
-        hba1cLevel: "6.8",
-        bloodGlucoseLevel: "145",
-        riskScore: "48.7",
+        bmi: 31.2,
+        hba1cLevel: 6.8,
+        bloodGlucoseLevel: 145,
+        riskScore: 48.7,
         riskCategory: "MODERATE",
         factors: [
           {
@@ -143,10 +143,10 @@ async function seedDatabase() {
         hypertension: true,
         heartDisease: true,
         smokingHistory: "current",
-        bmi: "35.8",
-        hba1cLevel: "8.2",
-        bloodGlucoseLevel: "198",
-        riskScore: "76.4",
+        bmi: 35.8,
+        hba1cLevel: 8.2,
+        bloodGlucoseLevel: 198,
+        riskScore: 76.4,
         riskCategory: "HIGH",
         factors: [
           {
@@ -343,14 +343,14 @@ export async function registerRoutes(
           // Save the assessment to the database
           const assessment = await storage.createAssessment({
             ...input,
-            riskScore: String(prediction.riskScore),
+            riskScore: Number(prediction.riskScore),
             riskCategory: prediction.riskCategory,
             factors: prediction.factors,
             confidenceInterval: prediction.confidenceInterval,
             modelConfidence:
               prediction.modelConfidence == null
                 ? undefined
-                : String(prediction.modelConfidence),
+                : Number(prediction.modelConfidence),
             createdBy: userId
           });
 

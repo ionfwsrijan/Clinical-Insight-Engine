@@ -13,6 +13,12 @@ export interface IStorage {
 }
 
 export type AssessmentCreateInput = InsertAssessment & {
+  riskScore: number;
+  riskCategory: string;
+  factors: AssessmentFactor[];
+  confidenceInterval?: string;
+  modelConfidence?: number;
+  createdBy?: string;
   createdBy: string;
   riskScore: string;
   riskCategory: string;
@@ -48,12 +54,7 @@ export class DatabaseStorage implements IStorage {
 
     const [created] = await db
       .insert(assessments)
-      .values({
-        ...assessment,
-        bmi: String(assessment.bmi),
-        hba1cLevel: String(assessment.hba1cLevel),
-        bloodGlucoseLevel: String(assessment.bloodGlucoseLevel)
-      })
+      .values(assessment as any)
       .returning();
 
     return created;
