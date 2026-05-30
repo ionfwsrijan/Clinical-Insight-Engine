@@ -8,12 +8,12 @@ import {
 import { desc, eq } from "drizzle-orm";
 
 export interface IStorage {
-  getAssessments(userId?: string, limit?: number, offset?: number): Promise<Assessment[]>;
+  getAssessments(limit?: number, offset?: number, createdBy?: string): Promise<Assessment[]>;
   createAssessment(assessment: any): Promise<Assessment>;
 }
 
 export type AssessmentCreateInput = InsertAssessment & {
-  userId: string;
+  createdBy: string;
   riskScore: string;
   riskCategory: string;
   factors: AssessmentFactor[];
@@ -23,9 +23,9 @@ export type AssessmentCreateInput = InsertAssessment & {
 
 export class DatabaseStorage implements IStorage {
   async getAssessments(
-    userId?: string,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
+    createdBy?: string
   ): Promise<Assessment[]> {
     const db = getDb();
 
@@ -34,8 +34,8 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .orderBy(desc(assessments.createdAt));
 
-    if (userId) {
-      query = query.where(eq(assessments.userId, userId));
+    if (createdBy) {
+      query = query.where(eq(assessments.createdBy, createdBy));
     }
 
     return await query.limit(limit).offset(offset);
@@ -48,7 +48,12 @@ export class DatabaseStorage implements IStorage {
 
     const [created] = await db
       .insert(assessments)
-      .values(assessment)
+      .values({
+        ...assessment,
+        bmi: String(assessment.bmi),
+        hba1cLevel: String(assessment.hba1cLevel),
+        bloodGlucoseLevel: String(assessment.bloodGlucoseLevel)
+      })
       .returning();
 
     return created;
