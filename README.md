@@ -683,6 +683,8 @@ py analyze.py predict_file patient.json
 
 > **Security:** `.env.local` is git-ignored and should **never** be committed. Production builds do not expose dev credentials.
 
+> **Request limits:** JSON and URL-encoded API payloads are limited to `256kb` by default. Add route-specific upload handling before increasing this global limit.
+
 ---
 
 ## ❓ Troubleshooting
