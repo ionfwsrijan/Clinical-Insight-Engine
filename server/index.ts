@@ -3,7 +3,12 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { DatabaseStartupError, verifyDatabaseConnection, closePool, getPool } from "./db";
+import {
+  DatabaseStartupError,
+  verifyDatabaseConnection,
+  closePool,
+  getPool,
+} from "./db";
 import { registerRoutes } from "./routes";
 import { createAuthRouter } from "./auth";
 import { serveStatic } from "./static";
@@ -14,7 +19,7 @@ const app = express();
 const httpServer = createServer(app);
 
 if (process.env.NODE_ENV === "production") {
-  app.set("trust proxy", 1);
+  app.set("trust proxy", true);
 }
 
 declare module "http" {
@@ -61,7 +66,7 @@ app.use(
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
-  }),
+  })
 );
 
 app.use(
@@ -69,7 +74,7 @@ app.use(
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
-  }),
+  })
 );
 
 app.use(express.urlencoded({ extended: false }));
@@ -84,7 +89,7 @@ app.use((_req, res, next) => {
 // Security headers via helmet
 const scriptSrcDirective: Array<string | ((req: any, res: any) => string)> = [
   "'self'",
-  (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`
+  (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`,
 ];
 
 // Vite HMR requires eval in development mode
@@ -98,11 +103,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: scriptSrcDirective,
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https://fonts.googleapis.com",
-        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:"],
         connectSrc: ["'self'", "ws://localhost:*", "ws://127.0.0.1:*"],
@@ -111,7 +112,7 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-  }),
+  })
 );
 
 function summarizeApiResponse(body: Record<string, any>) {
@@ -204,7 +205,7 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on the port specified in the environment variable PORT.
   // Other ports are firewalled. Default to 5000 if not specified.
   // This serves both the API and the client on the only un-firewalled port.
-  // Bind to 0.0.0.0 by default so local containers, Replit, and deployed 
+  // Bind to 0.0.0.0 by default so local containers, Replit, and deployed
   // environments expose the same listener. Set HOST=127.0.0.1 for local-only use.
   const port = parseInt(process.env.PORT || "5000", 10);
   const host = process.env.HOST || "0.0.0.0";
@@ -216,6 +217,6 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on ${host}:${port}`);
-    },
+    }
   );
 })();
