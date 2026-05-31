@@ -91,6 +91,41 @@ function logDevOtp(email: string, otp: string): void {
   }
 }
 
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function saveSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+async function establishAuthenticatedSession(
+  req: Request,
+  user: { id: string; email: string; name: string },
+): Promise<void> {
+  await regenerateSession(req);
+  req.session.user = user;
+  await saveSession(req);
+}
+
 /**
  * Creates an authentication router with login, register, logout, session-check,
  * email verification, and resend endpoints.
@@ -308,7 +343,12 @@ export function createAuthRouter(): Router {
       name = user.fullName;
     }
 
-    req.session.user = { id, email, name };
+    try {
+      await establishAuthenticatedSession(req, { id, email, name });
+    } catch (error) {
+      console.error("Session regeneration failed:", error);
+      return res.status(500).json({ message: "Failed to establish session." });
+    }
 
     return res.json({ success: true, user: { id, email, name } });
   });
@@ -353,7 +393,7 @@ export function createAuthRouter(): Router {
 
       // If already verified, return success
       if (user.emailVerified) {
-        req.session.user = { id: user.id, email: user.email, name: user.fullName };
+        await establishAuthenticatedSession(req, { id: user.id, email: user.email, name: user.fullName });
         return res.json({ success: true, message: "Email already verified." });
       }
 
@@ -416,8 +456,7 @@ export function createAuthRouter(): Router {
         .set({ emailVerified: true, emailVerifiedAt: new Date() })
         .where(eq(users.id, user.id));
 
-      // Create session
-      req.session.user = { id: user.id, email: user.email, name: user.fullName };
+      await establishAuthenticatedSession(req, { id: user.id, email: user.email, name: user.fullName });
 
       return res.json({ success: true, message: "Email verified successfully." });
     } catch (err) {
@@ -570,5 +609,4 @@ export async function requireVerified(req: Request, res: Response, next: NextFun
     return res.status(500).json({ message: "Failed to verify user status." });
   }
 }
-
 
