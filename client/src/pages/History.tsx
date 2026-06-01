@@ -405,6 +405,7 @@ export default function History() {
                 <thead>
                   <tr className="bg-muted/50 border-b border-border text-xs text-muted-foreground uppercase tracking-wider">
                     <th className="p-4 font-semibold">Date</th>
+                    <th className="p-4 font-semibold">Patient</th>
                     <th className="p-4 font-semibold">Age</th>
                     <th className="p-4 font-semibold">BMI</th>
                     <th className="p-4 font-semibold">HbA1c</th>
