@@ -11,7 +11,6 @@ import { sendVerificationCode } from "./email";
 declare module "express-session" {
   interface SessionData {
     user?: {
-      id: string;
       email: string;
       name: string;
       role?: string | null;
@@ -309,10 +308,10 @@ export function createAuthRouter(): Router {
     const devEmail = process.env.DEV_CLINICIAN_EMAIL || "";
     const devPassword = process.env.DEV_CLINICIAN_PASSWORD || "";
 
-    let userFullName: string | null = null;
+    let userName: string | null = null;
 
     if (email === devEmail && password === devPassword) {
-      userFullName = "Dr. Smith";
+      userName = "Dr. Smith";
     } else {
       // Check in-memory store (legacy)
       const registeredUser = registeredUsers.get(email);
