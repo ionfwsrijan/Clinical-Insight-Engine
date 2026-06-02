@@ -189,10 +189,14 @@ export default function Dashboard() {
   // Autosave draft on form changes
   const formData = watch();
   useEffect(() => {
+    if (result) return;
     if (formData && (formData.patientName || formData.age || formData.bmi || formData.hba1cLevel || formData.bloodGlucoseLevel || formData.hypertension || formData.heartDisease)) {
-      localStorage.setItem("clinical-insight-assessment-draft", JSON.stringify(formData));
+      const timer = setTimeout(() => {
+        localStorage.setItem("clinical-insight-assessment-draft", JSON.stringify(formData));
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [formData]);
+  }, [formData, result]);
 
   return (
     <AppLayout>
