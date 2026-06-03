@@ -335,7 +335,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     requireVerified,
     assessmentLimiter,
     async (req, res) => {
-      const userId = req.session.user?.email;
+      // Use the stable user ID (UUID) instead of email as the assessment key.
+      // Email is PII and can change — using it as a DB key causes orphaned
+      // records if the user's email is ever updated.
+      const userId = req.session.user?.id;
       if (!userId) {
         return res.status(401).json({ message: "Authentication required." });
       }
