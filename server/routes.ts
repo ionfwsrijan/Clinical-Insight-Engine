@@ -94,9 +94,22 @@ function parsePythonPrediction(stdout: string): PythonPrediction {
   return pythonPredictionSchema.parse(parsed);
 }
 
+function canonicalStringify(obj: unknown): string {
+  if (obj === null || typeof obj !== "object") {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return "[" + obj.map(canonicalStringify).join(",") + "]";
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map((k) => JSON.stringify(k) + ":" + canonicalStringify((obj as Record<string, unknown>)[k]));
+  return "{" + pairs.join(",") + "}";
+}
+
 function generateRequestFingerprint(payload: unknown, userId: string): string {
+  const uid = userId || "anonymous";
   return createHash("sha256")
-    .update(`${userId}::${JSON.stringify(payload)}`)
+    .update(`${uid}::${canonicalStringify(payload)}`)
     .digest("hex");
 }
 
