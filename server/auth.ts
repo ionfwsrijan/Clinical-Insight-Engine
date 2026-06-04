@@ -238,26 +238,6 @@ export function createAuthRouter(): Router {
 
       const passwordHash = hashPassword(password);
 
-      registeredUsers.set(email, {
-        fullName,
-        email,
-        passwordHash,
-        licenseNumber,
-      });
-
-      // Create DB user
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          fullName,
-          email,
-          medicalLicenseNumber: licenseNumber,
-          passwordHash,
-          emailVerified: false,
-          role: "provider",
-        })
-        .returning();
-
       // Create email verification token
       const otp = generateOtp();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -278,6 +258,13 @@ export function createAuthRouter(): Router {
           })
           .returning();
 
+        // Cache in-memory for legacy login flow
+        registeredUsers.set(email, {
+          fullName,
+          email,
+          passwordHash,
+          licenseNumber,
+        });
         registeredUserId = newUser.id;
 
         // Create email verification token
