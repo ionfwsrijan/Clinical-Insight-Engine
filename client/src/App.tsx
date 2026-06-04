@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
 import Analytics from "./pages/Analytics";
 import LoginPage from "./pages/LoginPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -34,6 +36,8 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/login" component={LoginPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms" component={Terms} />
       <Route component={NotFound} />
