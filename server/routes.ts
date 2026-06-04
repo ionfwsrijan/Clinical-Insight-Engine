@@ -416,19 +416,19 @@ export async function registerRoutes(
     previewLimiter,
     async (req, res) => {
       const input = api.assessments.preview.input.parse(req.body);
-      const tempFile = path.join(
+      const tempFilePath = path.join(
         os.tmpdir(),
         `${randomUUID()}.json`
       );
 
       try {
-        await writeFile(tempFile, JSON.stringify(input));
+        await writeFile(tempFilePath, JSON.stringify(input));
 
         let prediction;
         try {
           const { stdout, stderr } = await execFileAsync(
             getPythonExecutable(),
-            [analyzePyPath, "predict_file", tempFile],
+            [analyzePyPath, "predict_file", tempFilePath],
             {
               timeout: 30000
             }
