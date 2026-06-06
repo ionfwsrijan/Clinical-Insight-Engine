@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useAssessments, usePatientAssessments, useClearPatientCache } from "@/hooks/use-assessments";
+import { useAssessments, usePatientAssessments, useClearPatientCache, useDeleteAssessment } from "@/hooks/use-assessments";
 import {
   format,
   isValid,
@@ -29,6 +29,7 @@ import { calculateHealthBadges } from "@/utils/healthBadges";
 import { AssessmentSearchBar } from "@/components/AssessmentSearchBar";
 import { AssessmentFilters } from "@/components/AssessmentFilters";
 import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { ClearFiltersButton } from "@/components/ClearFiltersButton";
 import { validateSearchInput } from "@/validation/filterValidation";
 import AssessmentComparisonCard from "@/components/AssessmentComparisonCard";
@@ -109,6 +110,8 @@ export default function History() {
   });
 
   const assessments = assessmentsData?.data ?? [];
+
+  const { mutate: deleteAssessment } = useDeleteAssessment();
 
   // Refs to programmatically trigger the pop-up calendar on click
   const startInputRef = useRef<HTMLInputElement>(null);
@@ -735,6 +738,15 @@ export default function History() {
                             <FileText className="w-4 h-4" />
                             Export
                           </button>
+                          {assessment.id && (
+                            <ConfirmDeleteDialog
+                              patientName={assessment.patientName || "Unknown Patient"}
+                              assessmentDate={formatAssessmentDate(assessment.createdAt)}
+                              onConfirm={async () => {
+                                await deleteAssessment(assessment.id!);
+                              }}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
