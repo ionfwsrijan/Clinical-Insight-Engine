@@ -10,6 +10,7 @@ import { calculateHealthBadges } from "@/utils/healthBadges";
 import { downloadClinicalAssessmentPdf } from "@/utils/clinicalPdfReport";
 import { PatientPresentationMode } from "./PatientPresentationMode";
 import { WhatIfRiskSimulator } from "./WhatIfRiskSimulator";
+import { Recommendations } from "./Recommendations";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -325,6 +326,8 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                 ))}
               </div>
 
+              <Recommendations recommendations={assessment.recommendations} audience="patient" />
+
               <WhatIfRiskSimulator assessment={assessment} />
 
               <ExplainabilityPanel
@@ -483,6 +486,8 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                 reducedRiskFactors={reducedRiskFactors}
               />
 
+              <PredictionExplanation explanation={assessment.explanation} view="clinician" />
+
               <div className="rounded-xl border border-border bg-muted/30 p-5">
                 <h3 className="mb-4 font-bold">Suggested clinical follow-up</h3>
                 <div className="grid gap-3 md:grid-cols-3">
@@ -492,6 +497,9 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+              <div className="mt-4">
+                <Recommendations recommendations={assessment.recommendations} audience="clinician" />
               </div>
             </motion.div>
           )}
