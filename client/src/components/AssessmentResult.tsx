@@ -490,6 +490,8 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                 reducedRiskFactors={reducedRiskFactors}
               />
 
+              <PredictionExplanation explanation={assessment.explanation} view="clinician" />
+
               <div className="rounded-xl border border-border bg-muted/30 p-5">
                 <h3 className="mb-4 font-bold">Suggested clinical follow-up</h3>
                 <div className="grid gap-3 md:grid-cols-3">
