@@ -274,6 +274,7 @@ export class AssessmentRepository {
       const pattern = `%${searchTerm.trim()}%`;
       conditions.push(
         or(
+          ilike(assessments.patientName, pattern),
           ilike(assessments.gender, pattern),
           ilike(assessments.smokingHistory, pattern),
           ilike(assessments.riskCategory, pattern),
