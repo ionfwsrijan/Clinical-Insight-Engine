@@ -37,6 +37,7 @@ export const HealthBadges: FC<HealthBadgesProps> = ({
   description,
 }) => {
   return (
+    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
     <div className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-sm">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -53,6 +54,8 @@ export const HealthBadges: FC<HealthBadgesProps> = ({
       </div>
 
       {badges.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border bg-background p-6 text-sm text-muted-foreground">
+          Keep tracking patient assessments to start earning improvement badges. Badges appear when metrics or overall risk trend better compared to previous evaluations.
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 opacity-60 grayscale cursor-not-allowed">
           {[1, 2, 3].map((i) => (
             <div key={i} className="group rounded-3xl border border-dashed border-border bg-background/50 p-5">
