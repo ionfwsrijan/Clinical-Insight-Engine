@@ -11,6 +11,15 @@ import { requireAuth, requireAdmin, requireVerified } from "./auth";
 import { api } from "@shared/routes";
 import bcrypt from "bcrypt";
 import { logger } from "./logger";
+import { assessmentsToCsv } from "./utils/csvExport";
+import { searchQuerySchema } from "./validation/searchValidation";
+import {
+  sanitizeDatabaseError,
+  analyzeSearchInput,
+  logSecurityEvent,
+} from "./security/sqlProtection";
+import { canAccessPatientRecord } from "./services/authz/patient-access";
+import { logAccessAttempt } from "./security/access-audit";
 
 
 async function seedDatabase() {
@@ -231,7 +240,7 @@ function execFileAsync(file: string, args: string[], options: any): Promise<{ st
   return new Promise((resolve, reject) => {
     execFile(file, args, options, (err, stdout, stderr) => {
       if (err) reject(err);
-      else resolve({ stdout: stdout as string, stderr: stderr as string });
+      else resolve({ stdout: stdout as unknown as string, stderr: stderr as unknown as string });
     });
   });
 }
