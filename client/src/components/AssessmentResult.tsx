@@ -9,6 +9,7 @@ import { useAssessments } from "@/hooks/use-assessments";
 import { calculateHealthBadges } from "@/utils/healthBadges";
 import { downloadClinicalAssessmentPdf } from "@/utils/clinicalPdfReport";
 import { PatientPresentationMode } from "./PatientPresentationMode";
+import { WhatIfRiskSimulator } from "./WhatIfRiskSimulator";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -124,6 +125,10 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
 
   const { data: assessmentsResponse } = useAssessments();
   const assessmentHistory = assessmentsResponse?.data ?? [];
+  const assessmentHistory = useMemo(
+    () => assessmentsResponse?.data ?? [],
+    [assessmentsResponse]
+  );
   const improvementBadges = useMemo(
     () => calculateHealthBadges(assessment, assessmentHistory),
     [assessment, assessmentHistory]
@@ -321,6 +326,8 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                 ))}
               </div>
 
+              <WhatIfRiskSimulator assessment={assessment} />
+
               <ExplainabilityPanel
                 factors={factorBreakdown}
                 increasedRiskFactors={increasedRiskFactors}
@@ -440,9 +447,9 @@ export function AssessmentResult({ assessment }: AssessmentResultProps) {
                 <div className="h-56 sm:h-64 w-full overflow-x-auto">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <ReferenceLine x={0} stroke="#cbd5e1" />
+                      <ReferenceLine x={0} stroke="hsl(var(--border))" />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis dataKey="name" type="category" width={130} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                       <Tooltip 
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
