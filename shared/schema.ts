@@ -31,7 +31,6 @@ export const assessments = pgTable("assessments", {
   createdBy: text("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   userId: text("user_id"),
-  ownerId: uuid("owner_id").references(() => users.id),
 }, (table) => [
   index("created_by_id_idx").on(table.createdBy, table.id),
   index("owner_id_idx").on(table.ownerId),
