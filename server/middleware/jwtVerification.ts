@@ -6,9 +6,9 @@
  * Authentication flow:
  *   Request
  *     ↓ Extract "Authorization: Bearer <token>"
- *     ↓ Missing token → 401 { error: "Unauthorized" }
+ *     ↓ Missing token → 401 { message: "Unauthorized" }
  *     ↓ verifyToken() — strict HS256, no alg=none, signature verified
- *     ↓ Verification failure (any reason) → 401 { error: "Unauthorized" }
+ *     ↓ Verification failure (any reason) → 401 { message: "Unauthorized" }
  *     ↓ Attach verified payload to req.jwtUser
  *     ↓ next()
  *
@@ -63,7 +63,7 @@ function extractBearerToken(req: Request): string | null {
  *
  * Middleware that verifies a Bearer JWT on every request.
  * On success, attaches verified payload to req.jwtUser and calls next().
- * On any failure, returns 401 { error: "Unauthorized" } immediately.
+ * On any failure, returns 401 { message: "Unauthorized" } immediately.
  *
  * Never exposes verification failure details to the client.
  */
@@ -76,7 +76,7 @@ export async function requireJwtAuth(req: Request, res: Response, next: NextFunc
       "JWT required but Authorization header is missing or malformed",
       req
     );
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
@@ -94,7 +94,7 @@ export async function requireJwtAuth(req: Request, res: Response, next: NextFunc
       { userId: undefined }
     );
 
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
