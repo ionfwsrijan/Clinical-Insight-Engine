@@ -1,14 +1,14 @@
 import React from "react";
 
-type PriorityItem = {
+type AttentionPriority = {
   factor: string;
   priority: "high" | "moderate" | "monitor";
   reason: string;
   value?: number;
 };
 
-type PriorityNavigator = {
-  priorities: PriorityItem[];
+type AttentionNavigator = {
+  priorities: AttentionPriority[];
 };
 
 const PRIORITY_STYLES: Record<"high" | "moderate" | "monitor", string> = {
