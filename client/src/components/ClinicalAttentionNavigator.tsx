@@ -10,24 +10,6 @@ export interface AttentionNavigator {
   priorities: AttentionNavigatorItem[];
 }
 
-export interface AttentionNavigatorItem {
-  factor: string;
-  priority: PriorityLevel;
-  reason: string;
-  value?: number;
-}
-
-export interface AttentionNavigator {
-  priorities: AttentionNavigatorItem[];
-}
-
-interface PriorityItem {
-  factor: string;
-  priority: PriorityLevel;
-  reason: string;
-  value?: number;
-}
-
 interface NavigatorProps {
   priorities: PriorityItem[];
 }
