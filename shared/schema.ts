@@ -149,6 +149,18 @@ export const loginAuditLogs = pgTable("login_audit_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const patientAccessAuditLogs = pgTable("patient_access_audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id"),
+  action: text("action").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  granted: boolean("granted").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id),
@@ -169,6 +181,43 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
   attemptCount: integer("attempt_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const modelVersions = pgTable("model_versions", {
+  id: serial("id").primaryKey(),
+  version: integer("version").notNull(),
+  accuracy: doublePrecision("accuracy"),
+  precision: doublePrecision("precision"),
+  recall: doublePrecision("recall"),
+  f1Score: doublePrecision("f1_score"),
+  aucRoc: doublePrecision("auc_roc"),
+  datasetHash: text("dataset_hash"),
+  numSamples: integer("num_samples"),
+  numFeatures: integer("num_features"),
+  classBalance: jsonb("class_balance"),
+  featureDistributions: jsonb("feature_distributions"),
+  trainingDurationMs: integer("training_duration_ms"),
+  status: text("status").default("completed"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const patientUsers = pgTable("patient_users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  patientName: text("patient_name").notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  phone: varchar("phone", { length: 20 }),
+  isActive: boolean("is_active").default(true),
+  emailVerified: boolean("email_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PatientUser = typeof patientUsers.$inferSelect;
+export type InsertPatientUser = typeof patientUsers.$inferInsert;
+
+export type ModelVersion = typeof modelVersions.$inferSelect;
+export type InsertModelVersion = typeof modelVersions.$inferInsert;
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
