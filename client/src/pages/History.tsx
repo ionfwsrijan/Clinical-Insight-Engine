@@ -450,6 +450,21 @@ export default function History() {
     }, 250);
   }
 
+  const filteredAssessments = useMemo(() => {
+    return filterAssessments(assessments, {
+      searchTerm,
+      riskCategory,
+      gender,
+      ageRange: {
+        min: minAge,
+        max: maxAge,
+      },
+      dateRange: {
+        startDate,
+        endDate,
+      },
+    });
+  }, [assessments, searchTerm, riskCategory, gender, minAge, maxAge, startDate, endDate]);
   // Pagination (Server-Side)
   const totalRecords = assessmentsData?.total ?? 0;
   const filteredRecords = assessmentsData?.total ?? 0;

@@ -453,6 +453,7 @@ export async function registerRoutes(
         MLService.activeInferenceRequests.add(requestFingerprint);
         didAdd = true;
 
+        const job = await assessmentQueue.add("predict", {
         const queue = getAssessmentQueue();
         if (!queue) {
           return res.status(503).json({

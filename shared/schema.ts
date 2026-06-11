@@ -33,6 +33,7 @@ export const assessments = pgTable("assessments", {
   userId: text("user_id"),
 }, (table) => [
   index("created_by_id_idx").on(table.createdBy, table.id),
+  index("owner_id_idx").on(table.ownerId),
 ]);
 
 export const insertAssessmentSchema = createInsertSchema(assessments, {
