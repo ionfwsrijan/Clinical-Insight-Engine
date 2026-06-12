@@ -269,13 +269,6 @@ interface PendingRequest {
   reject: (reason: any) => void;
   timeoutId: NodeJS.Timeout;
 }
-export async function runAssessmentInference(input: unknown): Promise<{ prediction: PredictionResult, isFallback: boolean }> {
-  if (!isPythonAvailable) {
-    return { prediction: calculateClinicalFallback(input), isFallback: true };
-  }
-
-  const release = await mlConcurrency.acquire();
-  const tempFilePath = path.join(os.tmpdir(), `${randomUUID()}.json`);
 
 class PythonDaemonManager {
   private process: ChildProcess | null = null;
@@ -473,6 +466,7 @@ export async function runAssessmentInferenceBatch(inputs: unknown[]): Promise<{ 
     } else {
       logger.warn({ err: error }, "ML batch prediction failed, using clinical fallback");
     }
+    logger.warn({ err: error }, "ML batch prediction failed, using clinical fallback");
     const predictions = inputs.map(input => calculateClinicalFallback(input));
     return { predictions, isFallback: true };
   } finally {
