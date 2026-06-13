@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Github,
   HeartPulse,
   LineChart,
@@ -57,8 +58,6 @@ const featureCards = [
   },
 ];
 
-const heroBadges = ["Clinical AI", "Early Risk Detection", "Real-Time Analytics"];
-
 const footerLinks = [
   { href: "/privacy-policy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms" },
@@ -94,16 +93,8 @@ function BrandMark() {
 function DashboardPreview() {
   return (
     <div className="relative mx-auto max-w-xl">
-      <div className="absolute -left-6 top-12 hidden rounded-2xl bg-white/90 dark:bg-slate-900/90 p-4 shadow-xl shadow-slate-900/10 dark:shadow-slate-950/30 ring-1 ring-slate-200/70 dark:ring-slate-800 backdrop-blur md:block">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Risk drop</p>
-        <p className="mt-1 text-2xl font-black text-emerald-500">-18%</p>
-      </div>
-      <div className="absolute -right-4 bottom-16 hidden rounded-2xl bg-white/90 dark:bg-slate-900/90 p-4 shadow-xl shadow-slate-900/10 dark:shadow-slate-950/30 ring-1 ring-slate-200/70 dark:ring-slate-800 backdrop-blur sm:block">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Model speed</p>
-        <p className="mt-1 text-2xl font-black text-[#2563EB]">4.2s</p>
-      </div>
 
-      <div className="rounded-[2rem] bg-white/80 dark:bg-slate-900/80 p-3 shadow-2xl shadow-blue-950/10 ring-1 ring-white/80 dark:ring-slate-800 backdrop-blur">
+      <div className="rounded-[2rem] bg-white/80 dark:bg-slate-900/80 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.3)] shadow-blue-950/10 ring-1 ring-white/80 dark:ring-slate-800 backdrop-blur-md">
         <div className="overflow-hidden rounded-[1.5rem] bg-slate-950 text-white">
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
             <div>
@@ -148,16 +139,34 @@ function DashboardPreview() {
                 </div>
                 <LineChart className="h-5 w-5 text-blue-300" aria-hidden="true" />
               </div>
-              <div className="flex h-36 items-end gap-3">
-                {[46, 58, 52, 64, 48, 42].map((height, index) => (
-                  <div key={height + index} className="flex flex-1 flex-col items-center gap-2">
-                    <div
-                      className="w-full rounded-t-xl bg-gradient-to-t from-[#2563EB] to-cyan-300"
-                      style={{ height: `${height}%` }}
-                    />
-                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">M{index + 1}</span>
-                  </div>
-                ))}
+              <div className="h-36 w-full">
+                <svg className="h-full w-full" viewBox="0 0 240 120" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.0" />
+                    </linearGradient>
+                    <filter id="trendGlow">
+                      <feGaussianBlur stdDeviation="2" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <path
+                    d="M 0 90 C 30 95, 50 70, 80 60 C 110 50, 130 40, 160 38 C 190 36, 210 30, 240 25"
+                    stroke="#14b8a6"
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    filter="url(#trendGlow)"
+                  />
+                  <path
+                    d="M 0 90 C 30 95, 50 70, 80 60 C 110 50, 130 40, 160 38 C 190 36, 210 30, 240 25 L 240 120 L 0 120 Z"
+                    fill="url(#trendGradient)"
+                  />
+                </svg>
               </div>
               <div className="mt-5 rounded-2xl bg-emerald-400/10 p-3 text-sm text-emerald-200">
                 Earlier intervention window detected for metabolic markers.
@@ -210,17 +219,11 @@ export default function Landing() {
             </button>
             <button
               type="button"
-              onClick={() => setLocation("/login?mode=register")}
-              className="hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-black text-[#1E293B] dark:text-slate-200 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2563EB] hover:text-[#2563EB] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 md:inline-flex"
-            >
-              Register
-            </button>
-            <button
-              type="button"
               onClick={() => setLocation("/login")}
-              className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/25 focus:outline-none focus:ring-4 focus:ring-blue-200"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/25 focus:outline-none focus:ring-4 focus:ring-blue-200"
             >
-              Go to App
+              Get Started
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </nav>
@@ -238,18 +241,14 @@ export default function Landing() {
               animate="visible"
               transition={{ duration: 0.45, ease: "easeOut" }}
             >
-              <div className="mb-7 flex flex-wrap gap-3">
-                {heroBadges.map((badge) => (
-                  <span
-                    key={badge}
-                    className="rounded-full bg-white/80 dark:bg-slate-900/80 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#2563EB] shadow-sm ring-1 ring-blue-100 dark:ring-blue-950/50"
-                  >
-                    {badge}
-                  </span>
-                ))}
+              <div className="mb-7">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-slate-900/80 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#2563EB] shadow-sm ring-1 ring-blue-100 dark:ring-blue-950/50">
+                  <span className="flex h-2 w-2 rounded-full bg-[#2563EB] animate-pulse" />
+                  New: Real-Time Early Risk Detection Analytics
+                </span>
               </div>
 
-              <h1 className="max-w-4xl text-4xl font-black leading-[1.04] tracking-tight text-[#1E293B] dark:text-slate-100 sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-4xl text-4xl font-black leading-[1.15] tracking-tight text-[#1E293B] dark:text-slate-100 sm:text-5xl lg:text-6xl">
                 AI-Driven Preventive Diabetes Risk Assessment
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-400 sm:text-xl">
@@ -302,6 +301,16 @@ export default function Landing() {
             >
               <DashboardPreview />
             </motion.div>
+          </div>
+
+          <div className="flex justify-center pt-16">
+            <div className="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Scroll</span>
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-8 w-[1px] bg-gradient-to-b from-[#2563EB] to-transparent" />
+                <ChevronDown className="h-4 w-4 animate-bounce" />
+              </div>
+            </div>
           </div>
         </section>
 
