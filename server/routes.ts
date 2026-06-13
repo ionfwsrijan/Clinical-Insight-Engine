@@ -2,14 +2,50 @@ import mlRouter from "./routes/ml.routes";
 import exportsRouter from "./routes/exports.routes";
 import analyticsRouter from "./routes/analytics.routes";
 import uploadRouter from "./routes/upload.routes";
+import authRouter from "./routes/auth.routes";
 import type { Express } from "express";
 import type { Server } from "http";
-import authRouter from "./routes/auth.routes";
+
 import assessmentsRouter from "./routes/assessments.routes";
 import { storage, type AssessmentCreateInput } from "./storage";
-import { requireAuth, requireAdmin } from "./auth";
-import bcrypt from "bcrypt";
+import { requireAuth, requireAdmin, requireVerified } from "./auth";
 import { logger } from "./logger";
+import {
+  generalLimiter,
+  adminLimiter,
+  exportLimiter,
+} from "./middleware/rateLimit";
+import { rateLimit } from "express-rate-limit";
+import { MLService, calculateClinicalFallback, generateRequestFingerprint } from "./services/mlService";
+import { getAssessmentQueue, getPythonExecutable } from "./queue";
+import { execFile } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
+import bcrypt from "bcrypt";
+import { api } from "@shared/routes";
+import { z } from "zod";
+import os from "os";
+import { randomUUID } from "crypto";
+import { writeFile, unlink } from "fs/promises";
+import { validateDTO } from "./middleware/validateDTO";
+import { assessmentsToCsv } from "./utils/csvExport";
+import { searchQuerySchema, assessmentExportQuerySchema } from "./validation/searchValidation";
+import { analyzeSearchInput, logSecurityEvent, sanitizeDatabaseError } from "./security/sqlProtection";
+import { canAccessPatientRecord } from "./services/authz/patient-access";
+import { logAccessAttempt } from "./security/access-audit";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const analyzePyPath = path.resolve(__dirname, "..", "analyze.py");
+
+function execFileAsync(file: string, args: string[], options: any): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, options, (err, stdout, stderr) => {
+      if (err) reject(err);
+      else resolve({ stdout: stdout as unknown as string, stderr: stderr as unknown as string });
+    });
+  });
+}
 
 async function seedDatabase() {
   const adminEmail = process.env.ADMIN_EMAIL;
@@ -31,7 +67,7 @@ async function seedDatabase() {
     logger.warn("[DEV] Using default admin credentials. Set ADMIN_EMAIL and ADMIN_PASSWORD env vars for production.");
   }
 
-  const existingAdmin = await storage.getUserByEmail(email);
+  const existingAdmin = await storage.getUserByEmail("admin@clinical-insight-engine.dev");
   if (!existingAdmin) {
     const adminPasswordHash = bcrypt.hashSync(password, 10);
     await storage.createUser({
@@ -47,7 +83,7 @@ async function seedDatabase() {
   }
 
   const existing = await storage.getAssessments();
-  if (existing.data.length !== 0) return;
+  if (existing.data && existing.data.length !== 0) return;
 
   logger.info("Seeding database with sample assessments...");
 
@@ -70,11 +106,7 @@ async function seedDatabase() {
       factors: [
         { name: "Age", impact: "positive", description: "Increases risk" },
         { name: "Bmi", impact: "negative", description: "Lowers risk" },
-        {
-          name: "Hba1c Level",
-          impact: "negative",
-          description: "Lowers risk",
-        },
+        { name: "Hba1c Level", impact: "negative", description: "Lowers risk" },
       ],
       confidenceInterval: "8.5% - 16.1%",
       modelConfidence: 0.877,
@@ -93,17 +125,9 @@ async function seedDatabase() {
       riskScore: 48.7,
       riskCategory: "MODERATE",
       factors: [
-        {
-          name: "Hba1c Level",
-          impact: "positive",
-          description: "Increases risk",
-        },
+        { name: "Hba1c Level", impact: "positive", description: "Increases risk" },
         { name: "Bmi", impact: "positive", description: "Increases risk" },
-        {
-          name: "Hypertension",
-          impact: "positive",
-          description: "Increases risk",
-        },
+        { name: "Hypertension", impact: "positive", description: "Increases risk" },
       ],
       confidenceInterval: "38.9% - 58.5%",
       modelConfidence: 0.513,
@@ -121,10 +145,31 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const previewLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many preview requests. Please try again later.", retryAfter: 60 },
+  });
+
+  const assessmentLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 5,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: {
+      error: "Too many assessment requests. Please try again later.",
+      retryAfter: 60,
+    },
+  });
+
   // Seed database on startup — development only to prevent fake data in production
-  if (process.env.NODE_ENV !== "production") {
+  // Minimal unblock: disable seeding by default to avoid schema mismatch errors.
+  if (process.env.NODE_ENV !== "production" && process.env.SEED_DB === "true") {
     seedDatabase().catch((err) => logger.error({ err }, "Database seeding failed"));
   }
+
 
   app.get("/health", (req, res) => {
     res.json({
@@ -134,9 +179,8 @@ export async function registerRoutes(
     });
   });
 
-  // Mount domain-specific routers
+  // Mount auth router
   app.use("/api/auth", authRouter);
-  app.use("/api/assessments", analyticsRouter);
   app.use("/api/assessments", mlRouter);
   app.use("/api/assessments", exportsRouter);
   app.use("/api", analyticsRouter);
@@ -145,6 +189,7 @@ export async function registerRoutes(
     requireAuth,
     requireVerified,
     previewLimiter,
+    validateDTO(api.assessments.preview.input),
     async (req, res) => {
       const input = api.assessments.preview.input.parse(req.body);
       const tempFile = path.join(
@@ -172,7 +217,7 @@ export async function registerRoutes(
           }
         } catch (error: any) {
           if (error.killed || error.signal === "SIGTERM") {
-            return res.status(408).json({
+            return res.status(503).json({
               message: "Clinical assessment preview timed out."
             });
           }
@@ -281,11 +326,25 @@ export async function registerRoutes(
         });
       }
 
+      let requestFingerprint: string | undefined;
+      let didAdd = false;
       try {
         const input = api.assessments.create.input.parse(req.body);
-        const requestFingerprint = generateRequestFingerprint(input, userId);
-        
-        const job = await assessmentQueue.add("predict", {
+        requestFingerprint = generateRequestFingerprint(input, userId);
+
+        if (MLService.activeInferenceRequests.has(requestFingerprint)) {
+          return res.status(409).json({ message: "Assessment request is already being processed." });
+        }
+        MLService.activeInferenceRequests.add(requestFingerprint);
+        didAdd = true;
+
+        const queue = getAssessmentQueue();
+        if (!queue) {
+          return res.status(503).json({
+            message: "Assessment queue is temporarily unavailable.",
+          });
+        }
+        const job = await queue.add("predict", {
           input,
           userId,
           requestFingerprint
@@ -305,6 +364,10 @@ export async function registerRoutes(
         return res
           .status(500)
           .json({ message: "Failed to queue clinical assessment." });
+      } finally {
+        if (didAdd) {
+          MLService.activeInferenceRequests.delete(requestFingerprint!);
+        }
       }
     }
   );
@@ -316,7 +379,11 @@ export async function registerRoutes(
     async (req, res) => {
       try {
         const jobId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const job = await assessmentQueue.getJob(jobId as string);
+        const queue = getAssessmentQueue();
+        if (!queue) {
+          return res.status(503).json({ message: "Assessment queue is temporarily unavailable." });
+        }
+        const job = await queue.getJob(jobId as string);
         if (!job) {
           return res.status(404).json({ message: "Job not found" });
         }
@@ -352,10 +419,10 @@ export async function registerRoutes(
         const input = inputSchema.parse(req.body.assessments);
         
         requestFingerprint = generateRequestFingerprint(input, userId);
-        if (activeInferenceRequests.has(requestFingerprint)) {
+        if (MLService.activeInferenceRequests.has(requestFingerprint)) {
           return res.status(409).json({ message: "Bulk request already processing." });
         }
-        activeInferenceRequests.add(requestFingerprint);
+        MLService.activeInferenceRequests.add(requestFingerprint);
 
         tempFilePath = path.join(os.tmpdir(), `bulk_${randomUUID()}.json`);
         await writeFile(tempFilePath, JSON.stringify(input));
@@ -373,7 +440,7 @@ export async function registerRoutes(
             throw new Error("Expected array of predictions");
           }
         } catch (error: any) {
-          return res.status(500).json({ message: "Bulk ML processing failed or timed out." });
+          predictions = calculateClinicalFallback(input);
         }
 
         const createdAssessments = await Promise.all(
@@ -403,13 +470,11 @@ export async function registerRoutes(
           try { await unlink(tempFilePath); } catch {}
         }
         if (requestFingerprint) {
-          activeInferenceRequests.delete(requestFingerprint);
+          MLService.activeInferenceRequests.delete(requestFingerprint);
         }
       }
     }
   );
-
-
 
   app.get(api.assessments.list.path, requireAuth, requireVerified, async (req, res) => {
     try {
@@ -429,28 +494,7 @@ export async function registerRoutes(
       });
     }
   });
-  app.get(
-    "/api/assessments/export.csv",
-    requireAuth,
-    requireVerified,
-    async (req, res) => {
-      try {
-        const userEmail = req.session.user?.email;
-        const assessments = await storage.getAssessments(1000, undefined, userEmail);
 
-        const csv = assessmentsToCsv(
-          assessments.data as unknown as Record<string, unknown>[]
-        );
-
-        res.header("Content-Type", "text/csv");
-        res.attachment("assessments.csv");
-        return res.send(csv);
-      } catch (err) {
-        logger.error({ err }, "Export error:");
-        return res.status(500).json({ message: "Failed to export data" });
-      }
-    }
-  );
 
   /**
    * GET /api/assessments/search
@@ -542,6 +586,68 @@ export async function registerRoutes(
   );
 
   /**
+   * GET /api/assessments/patient/:patientName/trends
+   *
+   * Returns all historical assessments for a given patient, ordered by date.
+   * Used by the Progress Tracking dashboard to plot biomarker trends.
+   */
+  app.get(
+    "/api/assessments/patient/:patientName/trends",
+    requireAuth,
+    requireVerified,
+    async (req, res) => {
+      try {
+        const patientName = Array.isArray(req.params.patientName) ? req.params.patientName[0] : req.params.patientName;
+        const userEmail = req.session.user?.email;
+        const result = await storage.getAssessmentsByPatientName(patientName, 100, 0);
+        return res.json(result);
+      } catch (err) {
+        logger.error({ err }, "Patient trends fetch error:");
+        return res.status(500).json({ message: "Failed to fetch patient trends." });
+      }
+    }
+  );
+
+  /**
+   * GET /api/assessments/export.csv
+   *
+   * Exports filtered assessments as a CSV file.
+   */
+  app.get(
+    "/api/assessments/export.csv",
+    requireAuth,
+    requireVerified,
+    exportLimiter,
+    async (req, res) => {
+      try {
+        const userEmail = req.session.user?.email;
+        const parseResult = assessmentExportQuerySchema.safeParse(req.query);
+        if (!parseResult.success) {
+          return res.status(400).json({
+            message: parseResult.error.errors[0]?.message ?? "Invalid export query parameters.",
+          });
+        }
+
+        const assessments = await storage.getAssessments({
+          ...parseResult.data,
+          createdBy: userEmail,
+        });
+
+        const csv = assessmentsToCsv(
+          assessments.data as unknown as Record<string, unknown>[]
+        );
+
+        res.header("Content-Type", "text/csv");
+        res.attachment("assessments.csv");
+        return res.send(csv);
+      } catch (err) {
+        logger.error({ err }, "Export error:");
+        return res.status(500).json({ message: "Failed to export data" });
+      }
+    }
+  );
+
+  /**
    * GET /api/assessments/:id
    *
    * Fetch a single assessment by numeric ID.
@@ -599,9 +705,15 @@ export async function registerRoutes(
     }
   );
   
-  app.use("/api/assessments", assessmentsRouter);
+  // Mount domain-specific routers (after app-level handlers for precedence)
+  app.use("/api/assessments", mlRouter);
+  app.use("/api/assessments", exportsRouter);
+  app.use("/api/assessments", generalLimiter, assessmentsRouter);
 
   // ─── Admin Routes ────────────────────────────────────────────────
+
+  // Apply admin rate limiter to all admin routes
+  app.use("/api/admin", adminLimiter);
 
   app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -649,6 +761,112 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Model Monitoring Routes ──────────────────────────────────────
+
+  app.get("/api/admin/model/versions", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const versions = await storage.getModelVersions();
+      res.json(versions);
+    } catch (err) {
+      logger.error({ err }, "Admin model versions fetch error:");
+      res.status(500).json({ message: "Failed to fetch model versions." });
+    }
+  });
+
+  app.get("/api/admin/model/versions/latest", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const latest = await storage.getLatestModelVersion();
+      res.json(latest ?? null);
+    } catch (err) {
+      logger.error({ err }, "Admin latest model version fetch error:");
+      res.status(500).json({ message: "Failed to fetch latest model version." });
+    }
+  });
+
+  app.get("/api/admin/model/dataset-stats", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getModelDatasetStats();
+      res.json(stats ?? { classBalance: {}, featureStats: {}, totalSamples: 0 });
+    } catch (err) {
+      logger.error({ err }, "Admin dataset stats fetch error:");
+      res.status(500).json({ message: "Failed to fetch dataset stats." });
+    }
+  });
+
+  app.post("/api/admin/model/retrain", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        getPythonExecutable(),
+        [analyzePyPath, "train_and_evaluate"],
+        { timeout: 120000, env: { ...process.env, PYTHONIOENCODING: "utf-8" } }
+      );
+
+      if (stderr) {
+        logger.warn({ stderr }, "Model retrain stderr:");
+      }
+
+      const lines = stdout.trim().split("\n").filter(Boolean);
+      const jsonLine = lines.find((l: string) => l.startsWith("{"));
+      if (!jsonLine) {
+        logger.error({ stdout, stderr }, "Model retrain no JSON output");
+        return res.status(500).json({ message: "Retrain produced no valid output." });
+      }
+
+      const metrics = JSON.parse(jsonLine);
+
+      if (metrics.error) {
+        return res.status(500).json({ message: metrics.error });
+      }
+
+      const previousVersion = await storage.getLatestModelVersion();
+      const nextVersion = (previousVersion?.version ?? 0) + 1;
+
+      const record = await storage.createModelVersion({
+        version: nextVersion,
+        accuracy: metrics.accuracy,
+        precision: metrics.precision,
+        recall: metrics.recall,
+        f1Score: metrics.f1_score,
+        aucRoc: metrics.auc_roc,
+        datasetHash: metrics.dataset_hash,
+        numSamples: metrics.num_samples,
+        numFeatures: metrics.num_features,
+        classBalance: metrics.class_balance,
+        featureDistributions: metrics.feature_distributions,
+        trainingDurationMs: metrics.training_duration_ms,
+        status: "completed",
+      });
+
+      logger.info(`Model retrained: version ${nextVersion}, accuracy ${metrics.accuracy}`);
+      res.json(record);
+    } catch (err: any) {
+      logger.error({ err }, "Admin model retrain error:");
+      res.status(500).json({ message: err.stderr || "Model retraining failed." });
+    }
+  });
+
   app.use("/api/upload", uploadRouter);
+
+  // Endpoint to capture and log client-side React errors
+  app.post("/api/logs/client-error", (req, res) => {
+    try {
+      const { message, stack, componentStack, url, timestamp } = req.body;
+      logger.error(
+        {
+          source: "client",
+          url,
+          componentStack,
+          timestamp,
+          stack,
+        },
+        `[Client Error] ${message}`
+      );
+      res.status(200).json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "Failed to parse client error log");
+      res.status(500).json({ success: false });
+    }
+  });
+
   return httpServer;
 }

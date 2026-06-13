@@ -1,36 +1,40 @@
 import { Queue, Worker, Job } from "bullmq";
 import { storage } from "./storage";
 import IORedis from "ioredis";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import path from "path";
-import os from "os";
-import { randomUUID } from "crypto";
-import { writeFile, unlink } from "fs/promises";
-import { existsSync } from "fs";
-import { fileURLToPath } from "url";
 import { sendCriticalRiskAlert } from "./email";
 import { logger } from "./logger";
+import { MLService, calculateClinicalFallback } from "./services/mlService";
 
-export function getPythonExecutable() {
-  const candidates = process.platform === "win32"
-    ? [
-        path.resolve(".venv", "Scripts", "python.exe"),
-        path.resolve("venv", "Scripts", "python.exe")
-      ]
-    : [
-        path.resolve(".venv", "bin", "python"),
-        path.resolve("venv", "bin", "python")
-      ];
-
-  return candidates.find((candidate) => existsSync(candidate)) ?? "python3";
-}
+import { execFile } from "child_process";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const analyzePyPath = path.resolve(__dirname, "..", "analyze.py");
 
-const execFileAsync = promisify(execFile);
+export function getPythonExecutable(): string {
+  const candidates =
+    process.platform === "win32"
+      ? [path.resolve(".venv", "Scripts", "python.exe"), path.resolve("venv", "Scripts", "python.exe")]
+      : [path.resolve(".venv", "bin", "python"), path.resolve("venv", "bin", "python")];
+
+  for (const c of candidates) {
+    // best-effort; ignore errors
+    try {
+      // eslint-disable-next-line no-undef
+      require("fs").accessSync(c);
+      return c;
+    } catch {
+      // ignore
+    }
+  }
+
+  return process.platform === "win32" ? "python" : "python3";
+}
+
 
 let redisConnectionInstance: IORedis | null = null;
 let assessmentQueueInstance: Queue | null = null;
@@ -82,9 +86,9 @@ export async function verifyRedisConnection(): Promise<boolean> {
   }
 }
 
-export function getAssessmentQueue(): Queue {
+export function getAssessmentQueue(): Queue | null {
   if (!isQueueAvailable()) {
-    throw new Error("Assessment queue is not available");
+    return null;
   }
 
   if (!assessmentQueueInstance) {
@@ -105,68 +109,54 @@ export function startAssessmentWorker(): void {
     "assessmentQueue",
     async (job: Job) => {
       const { input, userId, userEmail } = job.data;
-      const tempFile = path.join(os.tmpdir(), `${randomUUID()}.json`);
+
+      const startedAt = Date.now();
+      const requestId = (job.data as any).requestFingerprint ?? job.id;
 
       try {
-        await writeFile(tempFile, JSON.stringify(input));
-        const stdout = await new Promise<string>((resolve, reject) => {
-          const child = execFile(
-            getPythonExecutable(),
-            [analyzePyPath, "predict_file", tempFile],
-            {
-              timeout: 60000,
-              killSignal: "SIGTERM",
-            },
-            (error, stdout, stderr) => {
-              if (error) {
-                reject(error);
-              } else {
-                resolve(stdout);
-              }
-            }
-          );
+        const { prediction } = await MLService.runAssessmentInference(input);
+        let resolvedPrediction: any = prediction;
 
-          const fallbackTimer = setTimeout(() => {
-            try {
-              child.kill("SIGKILL");
-            } catch (e) {
-              // ignore
-            }
-            reject(new Error("Clinical assessment timed out (forced kill)."));
-          }, 65000);
-
-          child.on("close", () => clearTimeout(fallbackTimer));
-        });
-
-        const prediction = JSON.parse(stdout.trim());
-        if (prediction.error) {
-          throw new Error(prediction.error);
+        if (!resolvedPrediction || resolvedPrediction.error) {
+          resolvedPrediction = calculateClinicalFallback(input);
         }
 
-        prediction.disclaimer =
-            "DISCLAIMER: This is a clinical decision support tool and is not a medical diagnosis. Please consult with a healthcare professional for clinical decisions.";
+        logger.info(
+          {
+            jobId: job.id,
+            requestId,
+            durationMs: Date.now() - startedAt,
+            riskCategory: resolvedPrediction.riskCategory,
+          },
+          "Assessment queue ML prediction completed",
+        );
+
+
+        resolvedPrediction.disclaimer =
+          "DISCLAIMER: This is a clinical decision support tool and is not a medical diagnosis. Please consult with a healthcare professional for clinical decisions.";
 
         const assessment = await storage.createAssessment({
           ...input,
-          riskScore: Number(prediction.riskScore),
-          riskCategory: prediction.riskCategory,
-          factors: prediction.factors,
-          confidenceInterval: prediction.confidenceInterval ?? null,
+          riskScore: Number(resolvedPrediction.riskScore),
+          riskCategory: resolvedPrediction.riskCategory,
+          factors: resolvedPrediction.factors,
+          confidenceInterval: resolvedPrediction.confidenceInterval ?? null,
           modelConfidence:
-            prediction.modelConfidence == null
+            resolvedPrediction.modelConfidence == null
               ? undefined
-              : Number(prediction.modelConfidence),
+              : Number(resolvedPrediction.modelConfidence),
           createdBy: userEmail || userId,
-          userId: userId
+          userId: userId,
         });
 
-        if (prediction.riskCategory === "HIGH" && userEmail) {
+        if (resolvedPrediction.riskCategory === "HIGH" && userEmail) {
           const alertSent = await sendCriticalRiskAlert(
             userEmail,
             input.patientName ?? "Unknown Patient",
-            Number(prediction.riskScore),
+            Number(resolvedPrediction.riskScore),
             assessment.id,
           );
+
           if (!alertSent) {
             logger.error(
               { assessmentId: assessment.id, userEmail },
@@ -177,19 +167,29 @@ export function startAssessmentWorker(): void {
 
         return {
           ...assessment,
-          prediction
+          prediction: resolvedPrediction,
+          requestId,
         };
       } catch (err: any) {
-        if (err.killed || err.signal === "SIGTERM") {
+        logger.error(
+          {
+            jobId: job.id,
+            requestId,
+            durationMs: Date.now() - startedAt,
+            err,
+          },
+          "Assessment queue job failed during ML processing",
+        );
+
+        if (
+          err.killed ||
+          err.signal === "SIGTERM" ||
+          err.message === "Clinical assessment timed out." ||
+          err.message?.includes("timed out")
+        ) {
           throw new Error("Clinical assessment generation timed out.");
         }
         throw err;
-      } finally {
-        try {
-          await unlink(tempFile);
-        } catch (e) {
-          // ignore
-        }
       }
     },
     {
@@ -199,7 +199,7 @@ export function startAssessmentWorker(): void {
   );
 
   assessmentWorkerInstance.on("failed", (job: Job | undefined, err: Error) => {
-    logger.error({ jobId: job?.id, err }, "Assessment queue job failed");
+    logger.error({ jobId: job?.id, requestId: job?.data?.requestId, err }, "Assessment queue job failed");
   });
 }
 

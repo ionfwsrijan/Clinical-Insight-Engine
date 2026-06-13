@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -19,7 +20,6 @@ import {
   ClipboardList,
   Target,
 } from "lucide-react";
-import { AuthFlowModal, type AuthMode } from "@/components/AuthFlowModal";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const navLinks = [
@@ -94,7 +94,10 @@ function BrandMark() {
 function DashboardPreview() {
   return (
     <div className="relative mx-auto max-w-xl">
-
+      <div className="absolute -left-6 top-12 hidden rounded-2xl bg-white/90 dark:bg-slate-900/90 p-4 shadow-xl shadow-slate-900/10 dark:shadow-slate-950/30 ring-1 ring-slate-200/70 dark:ring-slate-800 backdrop-blur md:block">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Risk drop</p>
+        <p className="mt-1 text-2xl font-black text-emerald-500">-18%</p>
+      </div>
       <div className="absolute -right-4 bottom-16 hidden rounded-2xl bg-white/90 dark:bg-slate-900/90 p-4 shadow-xl shadow-slate-900/10 dark:shadow-slate-950/30 ring-1 ring-slate-200/70 dark:ring-slate-800 backdrop-blur sm:block">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Model speed</p>
         <p className="mt-1 text-2xl font-black text-[#2563EB]">4.2s</p>
@@ -168,8 +171,8 @@ function DashboardPreview() {
 }
 
 export default function Landing() {
-  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [, setLocation] = useLocation();
+    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index);
@@ -200,21 +203,21 @@ export default function Landing() {
             
             <button
               type="button"
-              onClick={() => setAuthMode("login")}
+              onClick={() => setLocation("/login")}
               className="hidden rounded-2xl px-4 py-3 text-sm font-black text-slate-600 dark:text-slate-400 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-[#2563EB] dark:hover:text-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:inline-flex"
             >
               Login
             </button>
             <button
               type="button"
-              onClick={() => setAuthMode("register")}
+              onClick={() => setLocation("/login?mode=register")}
               className="hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-black text-[#1E293B] dark:text-slate-200 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2563EB] hover:text-[#2563EB] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100 md:inline-flex"
             >
               Register
             </button>
             <button
               type="button"
-              onClick={() => setAuthMode("login")}
+              onClick={() => setLocation("/login")}
               className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/25 focus:outline-none focus:ring-4 focus:ring-blue-200"
             >
               Go to App
@@ -271,7 +274,7 @@ export default function Landing() {
 
               <button
                 type="button"
-                onClick={() => setAuthMode("login")}
+                onClick={() => setLocation("/login")}
                 className="mt-5 text-sm font-black text-[#2563EB] transition-all duration-200 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
               >
                 Already have access? Login to your clinical dashboard
@@ -743,11 +746,7 @@ export default function Landing() {
         </div>
       </footer>
 
-      <AuthFlowModal
-        initialMode={authMode ?? "login"}
-        isOpen={authMode !== null}
-        onClose={() => setAuthMode(null)}
-      />
+      
     </div>
   );
 }
