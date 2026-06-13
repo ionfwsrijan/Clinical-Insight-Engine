@@ -96,13 +96,9 @@ function RetrainDialog({ onConfirm, isTraining }: { onConfirm: () => void; isTra
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button disabled={isTraining} className="gap-2">
-          {isTraining ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          {isTraining ? "Retraining…" : "Retrain Model"}
+        <Button isLoading={isTraining} loadingText="Retraining…" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Retrain Model
         </Button>
       </DialogTrigger>
       <DialogContent>
