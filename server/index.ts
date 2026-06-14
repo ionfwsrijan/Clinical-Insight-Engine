@@ -31,6 +31,7 @@ import {
 import { EmailConfigurationError, validateEmailConfig } from "./email";
 import { generalLimiter } from "./middleware/rateLimit";
 import { registerOpenApiDocs } from "./openapi";
+import { rlsContextMiddleware } from "./middleware/rlsContext";
 
 
 const app = express();
@@ -243,6 +244,12 @@ registerOpenApiDocs(app);
 
   // Register auth routes BEFORE API routes so session is available
   app.use("/api/auth", createAuthRouter());
+  // Apply RLS context middleware to assessment and patient data routes
+  // This ensures PostgreSQL session variables are set for RLS policies
+  app.use("/api/assessments", rlsContextMiddleware);
+  app.use("/api/patients", rlsContextMiddleware);
+  app.use("/api/patient", rlsContextMiddleware);
+  app.use("/api/admin", rlsContextMiddleware);
   // Register protected patient EMR/EHR integration endpoints
   app.use("/api/patients", generalLimiter, patientsRouter);
   app.use("/api/patient", patientPortalRouter);
