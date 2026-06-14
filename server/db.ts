@@ -1,7 +1,10 @@
+import { AsyncLocalStorage } from "async_hooks";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "@shared/schema";
 import { logger } from "./logger";
+
+export const dbRlsStorage = new AsyncLocalStorage<NodePgDatabase<typeof schema>>();
 
 const { Pool } = pg;
 
@@ -157,6 +160,9 @@ export function getPool() {
 }
 
 export function getDb() {
+  const rlsDb = dbRlsStorage.getStore();
+  if (rlsDb) return rlsDb;
+
   if (!dbInstance) {
     const rawDb = drizzle(getPool(), { schema });
     const originalTransaction = rawDb.transaction.bind(rawDb);
