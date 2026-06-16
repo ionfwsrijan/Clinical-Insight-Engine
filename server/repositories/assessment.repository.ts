@@ -362,26 +362,35 @@ export class AssessmentRepository {
   async getAssessmentsByPatientName(
     patientName: string,
     limit: number = 20,
-    offset: number = 0
+    offset: number = 0,
+    createdBy?: string
   ): Promise<{ data: Assessment[]; total: number }> {
     const db = getDb();
+    const conditions: ReturnType<typeof eq>[] = [eq(assessments.patientName, patientName)];
+    if (createdBy) {
+      conditions.push(eq(assessments.createdBy, createdBy));
+    }
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(assessments)
-      .where(eq(assessments.patientName, patientName));
+      .where(and(...conditions));
     const total = Number(countResult?.count ?? 0);
     const data = await db
       .select()
       .from(assessments)
-      .where(eq(assessments.patientName, patientName))
+      .where(and(...conditions))
       .orderBy(desc(assessments.createdAt))
       .limit(limit)
       .offset(offset);
     return { data, total };
   }
 
-  async getPatientTrends(patientName: string): Promise<{ date: string; riskScore: number; riskCategory: string }[]> {
+  async getPatientTrends(patientName: string, createdBy?: string): Promise<{ date: string; riskScore: number; riskCategory: string }[]> {
     const db = getDb();
+    const conditions: ReturnType<typeof eq>[] = [eq(assessments.patientName, patientName)];
+    if (createdBy) {
+      conditions.push(eq(assessments.createdBy, createdBy));
+    }
     const rows = await db
       .select({
         date: assessments.createdAt,
@@ -389,13 +398,20 @@ export class AssessmentRepository {
         riskCategory: assessments.riskCategory,
       })
       .from(assessments)
-      .where(eq(assessments.patientName, patientName))
+      .where(and(...conditions))
       .orderBy(asc(assessments.createdAt));
     return rows.map((r) => ({
       date: r.date?.toISOString() ?? "",
       riskScore: r.riskScore,
       riskCategory: r.riskCategory,
     }));
+  }
+
+  async createAssessmentsBatch(data: AssessmentCreateInput[]): Promise<Assessment[]> {
+    const db = getDb();
+    return db.transaction(async (tx) => {
+      return tx.insert(assessments).values(data as any).returning();
+    });
   }
 
   async deleteAssessment(id: number): Promise<void> {
