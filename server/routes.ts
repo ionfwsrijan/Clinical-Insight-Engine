@@ -332,10 +332,10 @@ export async function registerRoutes(
           predictions = calculateClinicalFallback(input) as PredictionResult[];
         }
 
-        const createdAssessments = await Promise.all(
+        const createdAssessments = await storage.createAssessmentsBatch(
           input.map((assessment, index) => {
             const prediction = predictions[index];
-            return storage.createAssessment({
+            return {
               ...assessment,
               riskScore: Number(prediction.riskScore),
               riskCategory: prediction.riskCategory,
@@ -343,7 +343,7 @@ export async function registerRoutes(
               confidenceInterval: prediction.confidenceInterval ?? null,
               modelConfidence: prediction.modelConfidence == null ? undefined : Number(prediction.modelConfidence),
               createdBy: userId,
-            });
+            };
           })
         );
 
