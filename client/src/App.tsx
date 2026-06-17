@@ -14,7 +14,7 @@ import ImportData from "./pages/ImportData";
 import AdminDashboard from "./pages/AdminDashboard";
 import ModelMonitoring from "./pages/ModelMonitoring";
 import ProgressTracking from "./pages/ProgressTracking";
-import CohortDiscovery from "./pages/CohortDiscovery";
+import RiskTrends from "./pages/RiskTrends";
 
 import LoginPage from "./pages/LoginPage";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -65,9 +65,9 @@ function Router() {
           <ProgressTracking />
         </ProtectedRoute>
       </Route>
-      <Route path="/cohort-discovery">
+      <Route path="/risk-trends">
         <ProtectedRoute>
-          <CohortDiscovery />
+          <RiskTrends />
         </ProtectedRoute>
       </Route>
       <Route path="/login" component={LoginPage} />
