@@ -49,14 +49,14 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       } as any}
-      components={({
-        IconLeft: ({ className: cn2, ...rest }: any) => (
-          <ChevronLeft className={cn("h-4 w-4", cn2)} {...rest} />
+      components={{
+        IconLeft: ({ className, ...props }: any) => (
+          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
         ),
-        IconRight: ({ className: cn2, ...rest }: any) => (
-          <ChevronRight className={cn("h-4 w-4", cn2)} {...rest} />
+        IconRight: ({ className, ...props }: any) => (
+          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
-      }) as any}
+      } as any}
       {...props}
     />
   )

@@ -138,7 +138,7 @@ assessmentsRouter.post(
           getPythonExecutable(),
           [analyzePyPath, "counterfactual"],
           { timeout: 30000, maxBuffer: 10 * 1024 * 1024 },
-          (error: any, stdout: any, stderr: any) => {
+          (error: any, stdout: string, stderr: string) => {
             if (error) reject(error);
             else resolve(stdout);
           }
@@ -186,7 +186,7 @@ assessmentsRouter.post(
           getPythonExecutable(),
           [analyzePyPath, "counterfactual_auto"],
           { timeout: 30000, maxBuffer: 10 * 1024 * 1024 },
-          (error: any, stdout: any, stderr: any) => {
+          (error: any, stdout: string, stderr: string) => {
             if (error) reject(error);
             else resolve(stdout);
           }

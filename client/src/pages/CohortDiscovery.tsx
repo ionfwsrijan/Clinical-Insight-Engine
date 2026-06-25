@@ -60,7 +60,7 @@ export default function CohortDiscovery() {
     queryKey: ["/api/assessments/cohort", queryString],
     queryFn: async () => {
       if (!queryString) return null;
-      return ApiClient.get(`/api/assessments/cohort?${queryString}`) as Promise<CohortData>;
+      return ApiClient.get<any>(`/api/assessments/cohort?${queryString}`);
     },
   });
 

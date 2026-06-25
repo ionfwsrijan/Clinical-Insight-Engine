@@ -88,7 +88,7 @@ function UsersTab({ active }: { active: boolean }) {
     } catch (err: any) {
       toast({
         title: "Update failed",
-        description: err instanceof Error ? err.message : "Failed to reach server",
+        description: err?.message || "Failed to reach server",
         variant: "destructive",
       });
     }

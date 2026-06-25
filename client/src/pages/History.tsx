@@ -278,11 +278,11 @@ export default function History() {
     formData.append("file", file);
 
     try {
-      const res = await ApiClient.requestRaw("/api/upload/lab-results", {
+      const response = await ApiClient.requestRaw("/api/upload/lab-results", {
         method: "POST",
         body: formData
       });
-      const data = await res.json() as { message: string };
+      const data = await response.json();
       toast({ title: "Success", description: data.message });
     } catch (err: unknown) {
       toast({ title: "Upload Error", description: err instanceof Error ? (err as Error).message : String(err), variant: "destructive" });
@@ -316,7 +316,7 @@ export default function History() {
     try {
       const params = buildExportParams();
       params.set("limit", "1000");
-      const data = await ApiClient.get(`/api/assessments/?${params.toString()}`) as { data: any[] };
+      const data = await ApiClient.get<any>(`/api/assessments/?${params.toString()}`);
       downloadBulkAssessmentPdf(data.data ?? []);
     } catch (err: unknown) {
       toast({ title: "Export Error", description: err instanceof Error ? (err as Error).message : String(err), variant: "destructive" });

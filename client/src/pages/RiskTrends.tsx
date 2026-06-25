@@ -96,8 +96,8 @@ export default function RiskTrends() {
       const params = new URLSearchParams({ patientName: name });
       if (sd) params.set("startDate", sd);
       if (ed) params.set("endDate", ed);
-      const json = await ApiClient.get(`/api/assessments/trends/dashboard?${params.toString()}`) as DashboardData;
-      setData(json);
+      const json = await ApiClient.get(`/api/assessments/trends/dashboard?${params.toString()}`);
+      setData(json as any);
     } catch (err: any) {
       setError(err.message || "Failed to load trends data");
     } finally {
