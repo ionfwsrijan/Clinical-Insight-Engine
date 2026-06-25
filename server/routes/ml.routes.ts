@@ -18,8 +18,9 @@ mlRouter.post(
   mlLimiter,
   validateDTO(z.object({ assessments: z.array(api.assessments.create.input) })),
   async (req, res) => {
-    const userId = (req.session.user)?.id;
-    if (!userId) {
+    const userId = (req.session.user as any)?.id;
+    const userEmail = req.session.user?.email;
+    if (!userId || !userEmail) {
       return res.status(401).json({ message: "Authentication required." });
     }
 
@@ -43,11 +44,28 @@ mlRouter.post(
         return res.status(503).json({ message: "Assessment queue is not available." });
       }
 
-      const job = await assessmentQueue.add("predictBatch", {
-        assessments: input,
-        userId,
-        requestFingerprint
-      });
+      if (predictions.length !== input.length) {
+        return res.status(500).json({
+          message: "Prediction count mismatch: ML service returned a different number of results than expected."
+        });
+      }
+
+      const createdAssessments = await storage.createAssessmentsBatch(
+        input.map((assessment: any, index: number) => {
+          const prediction = predictions[index];
+          return {
+            ...assessment,
+            riskScore: Number(prediction.riskScore),
+            riskCategory: prediction.riskCategory,
+            factors: prediction.factors,
+            confidenceInterval: prediction.confidenceInterval ?? null,
+            modelConfidence: prediction.modelConfidence == null ? undefined : Number(prediction.modelConfidence),
+            createdBy: userEmail,
+          });
+            createdBy: userId,
+          };
+        })
+      );
 
       return res.status(202).json({ 
         message: "Bulk request accepted and is being processed.", 
